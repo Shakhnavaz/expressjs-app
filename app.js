@@ -1,11 +1,7 @@
 import crypto from "crypto";
 import http from "http";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS,POST,PUT",
-  "Access-Control-Allow-Headers": "*",
-};
+
 
 const TEXT_PLAIN_HEADER = {
   "Content-Type": "text/plain; charset=utf-8",
@@ -13,9 +9,22 @@ const TEXT_PLAIN_HEADER = {
 
 const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
 
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 function corsMiddleware(req, res, next) {
-  res.set(CORS_HEADERS);
-  if (req.method === "OPTIONS") return res.sendStatus(204);
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
   next();
 }
 
