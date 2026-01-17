@@ -89,23 +89,33 @@ export function createApp(express, bodyParser, createReadStream, crypto, http) {
     res.set(TEXT_PLAIN_HEADER).send(hash);
   });
 
-  // GET /req/?addr=<url>
+  // GET /req/?addr=<url> - возвращает содержимое интернет-ресурса
   app.get("/req/", async (req, res) => {
     try {
-      const data = await fetchUrlData(req.query.addr, http);
+      const addr = req.query.addr;
+      if (!addr) {
+        res.status(400).set(TEXT_PLAIN_HEADER).send("Parameter 'addr' is required");
+        return;
+      }
+      const data = await fetchUrlData(addr, http);
       res.set(TEXT_PLAIN_HEADER).send(data);
     } catch (err) {
-      res.status(500).send(err.toString());
+      res.status(500).set(TEXT_PLAIN_HEADER).send(err.toString());
     }
   });
 
-  // POST /req/ с JSON { addr: <url> }
+  // POST /req/ - возвращает содержимое интернет-ресурса, addr из тела запроса
   app.post("/req/", async (req, res) => {
     try {
-      const data = await fetchUrlData(req.body.addr, http);
+      const addr = req.body.addr;
+      if (!addr) {
+        res.status(400).set(TEXT_PLAIN_HEADER).send("Parameter 'addr' is required");
+        return;
+      }
+      const data = await fetchUrlData(addr, http);
       res.set(TEXT_PLAIN_HEADER).send(data);
     } catch (err) {
-      res.status(500).send(err.toString());
+      res.status(500).set(TEXT_PLAIN_HEADER).send(err.toString());
     }
   });
 
