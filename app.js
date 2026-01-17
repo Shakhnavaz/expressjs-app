@@ -1,8 +1,14 @@
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Получение пути к текущему файлу
+// Для Linux/Mac: file:///path -> substring(7)
+// Для Windows: file:///C:/path -> substring(8)
+const getCurrentFilePath = () => {
+  const url = import.meta.url;
+  // Проверяем формат file:/// (3 слеша) для Windows
+  if (url.startsWith('file:///') && url[8] && url[8] !== '/') {
+    return url.substring(8); // Windows формат
+  }
+  return url.substring(7); // Linux/Mac формат
+};
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -79,7 +85,8 @@ export function createApp(express, bodyParser, createReadStream, crypto, http) {
 
   // Возвращает содержимое текущего файла
   app.get("/code/", async (_req, res) => {
-    const fileContent = await readFileAsync(__filename, createReadStream);
+    const filePath = getCurrentFilePath();
+    const fileContent = await readFileAsync(filePath, createReadStream);
     res.set(TEXT_PLAIN_HEADER).send(fileContent);
   });
 
