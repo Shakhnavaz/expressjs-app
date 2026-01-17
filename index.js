@@ -1,5 +1,11 @@
-import app from "./app.js";
+import express from "express";
+import bodyParser from "body-parser";
+import { createReadStream } from "fs";
+import crypto from "crypto";
+import http from "http";
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
-});
+import appSrc from "./app.js";
+
+const app = appSrc(express, bodyParser, createReadStream, crypto, http);
+
+app.listen(process.env.PORT || 3000);
