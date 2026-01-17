@@ -13,7 +13,7 @@ const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, ngrok-skip-browser-warning",
 };
 
 function corsMiddleware(req, res, next) {

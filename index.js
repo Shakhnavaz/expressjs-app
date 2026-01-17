@@ -1,14 +1,15 @@
-import express from "express";
-import { createReadStream } from "fs";
-import bodyParser from "body-parser";
-import createApp from "./app.js";
+const express = require("express");
+const { createReadStream } = require("fs");
+const bodyParser = require("body-parser");
+const path = require("path");
+
+const { createApp } = require("./app");
 
 const app = createApp(
   express,
   bodyParser,
   createReadStream,
-  new URL(import.meta.url).pathname
+  __filename // ← текущий файл
 );
 
 app.listen(3000);
-console.log("Server is running on http://localhost:3000");
