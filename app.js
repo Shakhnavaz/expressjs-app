@@ -1,7 +1,14 @@
-import crypto from "crypto";
-import http from "http";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS,POST,PUT",
+  "Access-Control-Allow-Headers": "*",
+};
 
 const TEXT_PLAIN_HEADER = {
   "Content-Type": "text/plain; charset=utf-8",
@@ -9,25 +16,14 @@ const TEXT_PLAIN_HEADER = {
 
 const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
 
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, ngrok-skip-browser-warning",
-};
-
+/** Middleware для CORS */
 function corsMiddleware(req, res, next) {
-  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-    res.setHeader(key, value);
-  });
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
+  res.set(CORS_HEADERS);
+  if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 }
 
+/** Чтение файла через поток */
 function readFileAsync(filePath, createReadStream) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -35,24 +31,27 @@ function readFileAsync(filePath, createReadStream) {
 
     stream.on("data", (chunk) => chunks.push(chunk));
     stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    stream.on("error", reject);
+    stream.on("error", (err) => reject(err));
   });
 }
 
-function generateSha1Hash(text) {
+/** Генерация SHA1 хеша */
+function generateSha1Hash(text, crypto) {
   return crypto.createHash("sha1").update(text).digest("hex");
 }
 
+/** Чтение данных из HTTP-ответа */
 function readHttpResponse(response) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     response.on("data", (chunk) => chunks.push(chunk));
     response.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    response.on("error", reject);
+    response.on("error", (err) => reject(err));
   });
 }
 
-async function fetchUrlData(url) {
+/** Универсальная функция для GET-запроса по URL */
+async function fetchUrlData(url, http) {
   return new Promise((resolve, reject) => {
     http.get(url, async (response) => {
       try {
@@ -65,49 +64,52 @@ async function fetchUrlData(url) {
   });
 }
 
-export default function createApp(
-  express,
-  bodyParser,
-  createReadStream,
-  currentFilePath
-) {
+/** Создание Express-приложения */
+export function createApp(express, bodyParser, createReadStream, crypto, http) {
   const app = express();
 
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(bodyParser.json());
   app.use(corsMiddleware);
 
+  // Возвращает системный логин
   app.get("/login/", (_req, res) => {
     res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
   });
 
+  // Возвращает содержимое текущего файла
   app.get("/code/", async (_req, res) => {
-    const fileContent = await readFileAsync(currentFilePath, createReadStream);
+    const fileContent = await readFileAsync(__filename, createReadStream);
     res.set(TEXT_PLAIN_HEADER).send(fileContent);
   });
 
+  // Возвращает SHA1 хеш переданного параметра
   app.get("/sha1/:input/", (req, res) => {
-    res.set(TEXT_PLAIN_HEADER).send(generateSha1Hash(req.params.input));
+    const hash = generateSha1Hash(req.params.input, crypto);
+    res.set(TEXT_PLAIN_HEADER).send(hash);
   });
 
+  // GET /req/?addr=<url>
   app.get("/req/", async (req, res) => {
     try {
-      const data = await fetchUrlData(req.query.addr);
+      const data = await fetchUrlData(req.query.addr, http);
       res.set(TEXT_PLAIN_HEADER).send(data);
     } catch (err) {
       res.status(500).send(err.toString());
     }
   });
 
+  // POST /req/ с JSON { addr: <url> }
   app.post("/req/", async (req, res) => {
     try {
-      const data = await fetchUrlData(req.body.addr);
+      const data = await fetchUrlData(req.body.addr, http);
       res.set(TEXT_PLAIN_HEADER).send(data);
     } catch (err) {
       res.status(500).send(err.toString());
     }
   });
 
+  // Любой другой маршрут возвращает системный логин
   app.all(/.*/, (_req, res) => {
     res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
   });

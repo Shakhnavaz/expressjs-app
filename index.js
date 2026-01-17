@@ -1,15 +1,11 @@
-const express = require("express");
-const { createReadStream } = require("fs");
-const bodyParser = require("body-parser");
-const path = require("path");
+import express from "express";
+import { createReadStream } from "fs";
+import crypto from "crypto";
+import http from "http";
+import bodyParser from "body-parser";
 
-const { createApp } = require("./app");
+import { createApp } from "./app.js";
 
-const app = createApp(
-  express,
-  bodyParser,
-  createReadStream,
-  __filename // ← текущий файл
-);
+const app = createApp(express, bodyParser, createReadStream, crypto, http);
 
 app.listen(3000);
