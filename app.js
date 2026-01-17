@@ -1,13 +1,6 @@
 // Получение пути к текущему файлу
-// Для Linux/Mac: file:///path -> substring(7)
-// Для Windows: file:///C:/path -> substring(8)
 const getCurrentFilePath = () => {
-  const url = import.meta.url;
-  // Проверяем формат file:/// (3 слеша) для Windows
-  if (url.startsWith('file:///') && url[8] && url[8] !== '/') {
-    return url.substring(8); // Windows формат
-  }
-  return url.substring(7); // Linux/Mac формат
+  return import.meta.url.substring(7);
 };
 
 const CORS_HEADERS = {
