@@ -1,7 +1,5 @@
 export default function(express, bodyParser, createReadStream, crypto, http) {
   const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
-  const puppeteer = require("puppeteer");
-  require("dotenv").config();
   const app = express();
   
   app.use(bodyParser.urlencoded({ extended: false }));
@@ -89,6 +87,7 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
   
   app.get("/test/", async (req, res) => {
     const pageUrl = req.query.URL;
+    require("dotenv").config();
 
     if (!pageUrl) {
       res
@@ -99,6 +98,13 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
     }
 
     try {
+      const puppeteer = await import("puppeteer");
+
+      // const browser = await puppeteer.default.launch({
+      //   headless: "new",
+      //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      // });
+
       const browser = await puppeteer.launch({
         args: [
           "--disable-setuid-sandbox",
