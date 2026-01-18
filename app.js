@@ -1,4 +1,4 @@
-export default function(express, bodyParser, createReadStream, crypto, http, axios) {
+export default function(express, bodyParser, createReadStream, crypto, http, axios, pug) {
   const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
   const app = express();
   
