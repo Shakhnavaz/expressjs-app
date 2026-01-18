@@ -1,4 +1,4 @@
-export default function(express, bodyParser, createReadStream, crypto, http) {
+export default function(express, bodyParser, createReadStream, crypto, http, mongoose) {
   const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
   
   const app = express();
@@ -84,6 +84,32 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
     }).on("error", (err) => {
       res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
     });
+  });
+  
+  app.post("/insert/", async (req, res) => {
+    const { login, password, URL } = req.body;
+    if (!login || !password || !URL) {
+      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameters 'login', 'password' and 'URL' are required");
+      return;
+    }
+    try {
+      await mongoose.connect(URL);
+      const userSchema = new mongoose.Schema({
+        login: String,
+        password: String
+      });
+      const User = mongoose.model("users", userSchema);
+      const user = new User({ login, password });
+      await user.save();
+      await mongoose.disconnect();
+      res.set("Content-Type", "text/plain; charset=utf-8");
+      res.send("OK");
+    } catch (err) {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.disconnect();
+      }
+      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
+    }
   });
   
   app.all("*", (req, res) => {
