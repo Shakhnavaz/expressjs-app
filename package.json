@@ -12,7 +12,8 @@
     "cors": "^2.8.5",
     "express": "^4.22.1",
     "mongoose": "5.8.11",
-    "pug": "^3.0.2"
+    "pug": "^3.0.2",
+    "puppeteer": "^24.35.0"
   },
   "engines": {
     "node": "18.x"

@@ -1,225 +1,66 @@
-export default function(express, bodyParser, createReadStream, crypto, http, mongoose, pug, https) {
-  const SYSTEM_LOGIN = "45cf3a7d-a058-4ede-a03c-2c98a130021d";
-  
-  const app = express();
-  
-  app.use(bodyParser.urlencoded({ extended: false }));
-  app.use(bodyParser.json());
-  
-  app.use((req, res, next) => {
-    res.set({
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,OPTIONS,DELETE",
-      "Access-Control-Allow-Headers": "*",
-    });
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(204);
-    }
-    next();
-  });
-  
-  app.get("/login/", (req, res) => {
-    res.set("Content-Type", "text/plain; charset=utf-8");
-    res.send(SYSTEM_LOGIN);
-  });
-  
-  app.get("/code/", (req, res) => {
-    const filePath = import.meta.url.substring(7);
-    const stream = createReadStream(filePath);
-    res.set("Content-Type", "text/plain; charset=utf-8");
-    stream.pipe(res);
-    stream.on("error", (err) => {
-      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-    });
-  });
-  
-  app.get("/sha1/:input/", (req, res) => {
-    const input = req.params.input;
-    const hash = crypto.createHash("sha1").update(input).digest("hex");
-    res.set("Content-Type", "text/plain; charset=utf-8");
-    res.send(hash);
-  });
-  
-  app.get("/req/", (req, res) => {
-    const addr = req.query.addr;
-    if (!addr) {
-      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameter 'addr' is required");
-      return;
-    }
-    http.get(addr, (response) => {
-      let data = "";
-      response.on("data", (chunk) => {
-        data += chunk;
-      });
-      response.on("end", () => {
-        res.set("Content-Type", "text/plain; charset=utf-8");
-        res.send(data);
-      });
-      response.on("error", (err) => {
-        res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-      });
-    }).on("error", (err) => {
-      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-    });
-  });
-  
-  app.post("/req/", (req, res) => {
-    const addr = req.body.addr;
-    if (!addr) {
-      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameter 'addr' is required");
-      return;
-    }
-    http.get(addr, (response) => {
-      let data = "";
-      response.on("data", (chunk) => {
-        data += chunk;
-      });
-      response.on("end", () => {
-        res.set("Content-Type", "text/plain; charset=utf-8");
-        res.send(data);
-      });
-      response.on("error", (err) => {
-        res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-      });
-    }).on("error", (err) => {
-      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-    });
-  });
-  
-  app.post("/insert/", async (req, res) => {
-    const { login, password, URL } = req.body;
-    if (!login || !password || !URL) {
-      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameters 'login', 'password' and 'URL' are required");
-      return;
-    }
-    try {
-      await mongoose.connect(URL);
-      const userSchema = new mongoose.Schema({
-        login: String,
-        password: String
-      });
-      const User = mongoose.model("users", userSchema);
-      const user = new User({ login, password });
-      await user.save();
-      await mongoose.disconnect();
-      res.set("Content-Type", "text/plain; charset=utf-8");
-      res.send("OK");
-    } catch (err) {
-      if (mongoose.connection.readyState === 1) {
-        await mongoose.disconnect();
-      }
-      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-    }
-  });
+import express from "express";
+import puppeteer from "puppeteer";
 
-  app.all("/wordpress*", (req, res) => {
-    const wordpressUrl = process.env.WORDPRESS_URL || "http://localhost:8080";
-    let path = req.url.replace("/wordpress", "");
-    if (path === "" || path === "/") {
-      path = "/";
-    } else if (!path.startsWith("/")) {
-      path = "/" + path;
-    }
-    const targetUrl = wordpressUrl + path;
-    const urlObj = new URL(targetUrl);
-    const options = {
-      hostname: urlObj.hostname,
-      port: urlObj.port || (urlObj.protocol === "https:" ? 443 : 80),
-      path: urlObj.pathname + urlObj.search,
-      method: req.method,
-      headers: {}
-    };
-    Object.keys(req.headers).forEach((key) => {
-      const lowerKey = key.toLowerCase();
-      if (lowerKey !== "host" && lowerKey !== "content-length") {
-        options.headers[key] = req.headers[key];
-      }
-    });
-    options.headers.host = urlObj.hostname;
-    const client = urlObj.protocol === "https:" ? https : http;
-    const proxyReq = client.request(options, (proxyRes) => {
-      if (!res.headersSent) {
-        res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      }
-      proxyRes.pipe(res);
-    });
-    proxyReq.on("error", (err) => {
-      if (!res.headersSent) {
-        res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-      }
-    });
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      if (req.body !== undefined && req.body !== null) {
-        const bodyData = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
-        proxyReq.write(bodyData);
-      }
-      proxyReq.end();
-    } else {
-      proxyReq.end();
-    }
-  });
+const app = express();
 
-  app.post("/render/", async (req, res) => {
-    const addr = req.query.addr;
-    if (!addr) {
-      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameter 'addr' is required");
-      return;
-    }
-    let bodyData = req.body;
-    if (typeof bodyData === "string") {
-      try {
-        bodyData = JSON.parse(bodyData);
-      } catch (e) {
-        res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Invalid JSON in request body");
-        return;
-      }
-    }
-    if (!bodyData || typeof bodyData !== "object") {
-      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Request body must be a JSON object or JSON string");
-      return;
-    }
-    const { random2, random3 } = bodyData;
-    if (random2 === undefined || random3 === undefined) {
-      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameters 'random2' and 'random3' are required in request body");
-      return;
-    }
-    try {
-      const urlObj = new URL(addr);
-      const client = urlObj.protocol === "https:" ? https : http;
-      const templateData = await new Promise((resolve, reject) => {
-        const options = {
-          hostname: urlObj.hostname,
-          port: urlObj.port || (urlObj.protocol === "https:" ? 443 : 80),
-          path: urlObj.pathname + urlObj.search
-        };
-        client.get(options, (response) => {
-          if (response.statusCode < 200 || response.statusCode >= 300) {
-            reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
-            return;
-          }
-          let data = "";
-          response.on("data", (chunk) => {
-            data += chunk;
-          });
-          response.on("end", () => {
-            resolve(data);
-          });
-          response.on("error", reject);
-        }).on("error", reject);
-      });
-      const compiledTemplate = pug.compile(templateData);
-      const html = compiledTemplate({ random2, random3 });
-      res.set("Content-Type", "text/html; charset=utf-8");
-      res.send(html);
-    } catch (err) {
-      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
-    }
-  });
-  
-  app.all("*", (req, res) => {
-    res.set("Content-Type", "text/plain; charset=utf-8");
-    res.send(SYSTEM_LOGIN);
-  });
-  
-  return app;
-}
+/* CORS */
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  next();
+});
+
+/* /login/ */
+app.get("/login/", (_, res) => {
+  res.type("text/plain");
+  res.send("45cf3a7d-a058-4ede-a03c-2c98a130021d");
+});
+
+/* /test/?URL=... */
+app.get("/test/", async (req, res) => {
+  const targetURL = req.query.URL;
+
+  if (!targetURL) {
+    res.status(400).type("text/plain").send("URL query parameter is required");
+    return;
+  }
+
+  let browser;
+
+  try {
+    browser = await puppeteer.launch({
+      headless: "new",
+      executablePath: "/usr/bin/chromium-browser",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const page = await browser.newPage();
+    await page.goto(targetURL, { waitUntil: "networkidle2" });
+
+    await page.waitForSelector("#bt", { timeout: 3000 });
+    await page.waitForSelector("#inp", { timeout: 3000 });
+
+    await page.click("#bt");
+
+    await page.waitForFunction(() => {
+      const input = document.querySelector("#inp");
+      return input && input.value !== "";
+    }, { timeout: 3000 });
+
+    const result = await page.evaluate(() => {
+      return document.querySelector("#inp").value;
+    });
+
+    res.type("text/plain").send(result);
+
+  } catch (e) {
+    res.status(500).type("text/plain").send("Error processing page");
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
+/* HTTP */
+const PORT = process.env.PORT || 3000;
+app.listen(PORT);
