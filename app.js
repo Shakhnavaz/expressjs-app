@@ -112,7 +112,7 @@ export default function(express, bodyParser, createReadStream, crypto, http, mon
     }
   });
 
-  app.use("/wordpress/", (req, res) => {
+  app.all("/wordpress*", (req, res) => {
     const wordpressUrl = process.env.WORDPRESS_URL || "http://localhost:8080";
     let path = req.url.replace("/wordpress", "");
     if (path === "" || path === "/") {
@@ -130,21 +130,30 @@ export default function(express, bodyParser, createReadStream, crypto, http, mon
       headers: {}
     };
     Object.keys(req.headers).forEach((key) => {
-      if (key.toLowerCase() !== "host") {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== "host" && lowerKey !== "content-length") {
         options.headers[key] = req.headers[key];
       }
     });
     options.headers.host = urlObj.hostname;
     const client = urlObj.protocol === "https:" ? https : http;
     const proxyReq = client.request(options, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      if (!res.headersSent) {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      }
       proxyRes.pipe(res);
     });
     proxyReq.on("error", (err) => {
-      res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
+      if (!res.headersSent) {
+        res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
+      }
     });
     if (req.method !== "GET" && req.method !== "HEAD") {
-      req.pipe(proxyReq);
+      if (req.body !== undefined && req.body !== null) {
+        const bodyData = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+        proxyReq.write(bodyData);
+      }
+      proxyReq.end();
     } else {
       proxyReq.end();
     }
@@ -156,7 +165,20 @@ export default function(express, bodyParser, createReadStream, crypto, http, mon
       res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameter 'addr' is required");
       return;
     }
-    const { random2, random3 } = req.body;
+    let bodyData = req.body;
+    if (typeof bodyData === "string") {
+      try {
+        bodyData = JSON.parse(bodyData);
+      } catch (e) {
+        res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Invalid JSON in request body");
+        return;
+      }
+    }
+    if (!bodyData || typeof bodyData !== "object") {
+      res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Request body must be a JSON object or JSON string");
+      return;
+    }
+    const { random2, random3 } = bodyData;
     if (random2 === undefined || random3 === undefined) {
       res.status(400).set("Content-Type", "text/plain; charset=utf-8").send("Parameters 'random2' and 'random3' are required in request body");
       return;
@@ -171,6 +193,10 @@ export default function(express, bodyParser, createReadStream, crypto, http, mon
           path: urlObj.pathname + urlObj.search
         };
         client.get(options, (response) => {
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+            return;
+          }
           let data = "";
           response.on("data", (chunk) => {
             data += chunk;
