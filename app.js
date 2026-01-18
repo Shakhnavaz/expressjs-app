@@ -87,7 +87,7 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
   
   app.get("/test/", async (req, res) => {
     const pageUrl = req.query.URL;
-    require("dotenv").config();
+    // require("dotenv").config();
 
     if (!pageUrl) {
       res
