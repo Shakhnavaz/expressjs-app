@@ -167,7 +167,7 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
     });
   });
 
-  app.use(express.json());
+  // app.use(express.json());
 
   app.post('/render/', async (req, res) => {
     const { random2, random3 } = req.body;
