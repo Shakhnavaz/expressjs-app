@@ -84,6 +84,7 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
       res.status(500).set("Content-Type", "text/plain; charset=utf-8").send(err.toString());
     });
   });
+
   
   app.get("/test/", async (req, res) => {
     const pageUrl = req.query.URL;
@@ -146,6 +147,41 @@ export default function(express, bodyParser, createReadStream, crypto, http) {
     }
   });
 
+
+//---------------------task-8------------------------
+
+// const axios = require('axios');
+// const pug = require('pug');
+
+  app.get('/wordpress/wp-json/wp/v2/posts/1', (_, res) => {
+    res.json({
+      id: 1,
+      slug: SYSTEM_LOGIN,
+      title: {
+        rendered: SYSTEM_LOGIN
+      },
+      content: {
+        rendered: "",
+        protected: false
+      }
+    });
+  });
+
+  app.use(express.json());
+
+  app.post('/render/', async (req, res) => {
+    const { random2, random3 } = req.body;
+    const { addr } = req.query;
+
+    const templateResponse = await axios.get(addr);
+    const pugTemplate = templateResponse.data;
+
+    const compiled = pug.compile(pugTemplate);
+    const html = compiled({ random2, random3 });
+
+    res.set('Content-Type', 'text/html');
+    res.send(html);
+  });
 
   app.all("*", (req, res) => {
     res.set("Content-Type", "text/plain; charset=utf-8");
