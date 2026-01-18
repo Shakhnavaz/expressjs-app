@@ -4,7 +4,7 @@ set -o errexit
 
 npm install
 
-PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
 mkdir -p $PUPPETEER_CACHE_DIR
 
 npx puppeteer browsers install chrome
