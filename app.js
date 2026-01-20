@@ -1,42 +1,36 @@
 const express = require('express');
+const multer = require('multer');
 const sharp = require('sharp');
+const https = require('https');
+const fs = require('fs');
 
 const app = express();
+const upload = multer(); // сохраняем в оперативной памяти
 
-// Генерация изображения
-app.get('/makeimage', async (req, res) => {
-  const width = parseInt(req.query.width, 10) || 100;
-  const height = parseInt(req.query.height, 10) || 100;
+const LOGIN = "turalinskiy"; // заменить login
 
-  try {
-    const buffer = await sharp({
-      create: {
-        width,
-        height,
-        channels: 4,
-        background: { r: 255, g: 255, b: 255, alpha: 1 }
-      }
-    })
-      .png()
-      .toBuffer();
-
-    res.set('Content-Type', 'image/png');
-    res.send(buffer);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error generating image');
-  }
-});
-
-// Простой эндпоинт
 app.get('/login', (req, res) => {
-  const login = 'turalinskiy'; // TODO: поменять
-  res.send(login);
+    res.type('text/plain').send(LOGIN);
 });
 
-// Render использует PORT из env
-const PORT = process.env.PORT || 3000;
+app.post("/size2json", upload.single("image"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "Не передано поле image" });
+        }
 
+        const metadata = await sharp(req.file.buffer).metadata();
+
+        res.json({
+            width: metadata.width,
+            height: metadata.height
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Ошибка обработки изображения" });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+    console.log(`Сервер запущен на порту ${PORT}`);
 });
