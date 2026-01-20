@@ -1,33 +1,46 @@
 const express = require('express');
-const multer = require('multer');
-const sharp = require('sharp');
 const https = require('https');
-const fs = require('fs');
 
 const app = express();
-const upload = multer(); // сохраняем в оперативной памяти
-
-const LOGIN = "turalinskiy"; // заменить login
+const LOGIN = "turalinskiy"; // login
 
 app.get('/login', (req, res) => {
     res.type('text/plain').send(LOGIN);
 });
 
-app.post("/size2json", upload.single("image"), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: "Не передано поле image" });
+app.get('/id/:N', (req, res) => {
+    const N = req.params.N;
+    const options = {
+        hostname: 'nd.kodaktor.ru',
+        path: `/users/${N}`,
+        method: 'GET',
+        headers: {
+            // Content-Type заголовок отсутствует намеренно
         }
+    };
 
-        const metadata = await sharp(req.file.buffer).metadata();
+    https.get(options, (response) => {
+        let data = '';
 
-        res.json({
-            width: metadata.width,
-            height: metadata.height
+        response.on('data', (chunk) => {
+            data += chunk;
         });
-    } catch (err) {
-        res.status(500).json({ error: "Ошибка обработки изображения" });
-    }
+
+        response.on('end', () => {
+            try {
+                const json = JSON.parse(data);
+                if (json.login) {
+                    res.type('text/plain').send(json.login);
+                } else {
+                    res.status(404).send('Login field not found');
+                }
+            } catch (e) {
+                res.status(500).send('Ошибка обработки данных');
+            }
+        });
+    }).on('error', (err) => {
+        res.status(500).send('Ошибка запроса к удалённому серверу');
+    });
 });
 
 const PORT = process.env.PORT || 3000;
