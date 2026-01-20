@@ -30,7 +30,7 @@ app.get('/makeimage', async (req, res) => {
 
 // Простой эндпоинт
 app.get('/login', (req, res) => {
-  const login = 'login'; // TODO: поменять
+  const login = 'turalinskiy'; // TODO: поменять
   res.send(login);
 });
 
