@@ -1,12 +1,16 @@
 {
-  "name": "image-service",
+  "name": "expressjs-app",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.22.1",
-    "sharp": "^0.33.5"
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.0"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
